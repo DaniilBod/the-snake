@@ -11,7 +11,8 @@ Dependencies:
     pygame-ce>= 2.5.7
 """
 
-from random import randrange as rr, randint as ri
+from random import randint as ri
+from random import randrange as rr
 
 import pygame
 
@@ -165,7 +166,7 @@ class Apple(GameObject):
         super().__init__()
         self.body_color: tuple[int, int, int] = APPLE_COLOR
 
-    def randomize_position(self, snake: Snake, rocks: Rocks) -> None:
+    def randomize_position(self, snake: 'Snake', rocks: 'Rocks') -> None:
         """The method implements a random apple spawn."""
         while (
             self.position in snake.positions
