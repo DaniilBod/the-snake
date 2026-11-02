@@ -170,7 +170,7 @@ class Snake(GameObject):
 class Apple(GameObject):
     """The method provides food for the snake."""
 
-    def __init__(self, occupied_positions: list[tuple[int, int]]) -> None:
+    def __init__(self, occupied_positions: list[tuple[int, int]] = []) -> None:
         super().__init__()
         self.body_color: tuple[int, int, int] = APPLE_COLOR
         self.randomize_position(occupied_positions)
@@ -283,9 +283,8 @@ def main() -> None:
     grid = Grid()
     snake = Snake()
     rocks = Rocks()
-    apple = Apple(snake.positions + rocks.positions)
-
     spawn_objects(rocks)
+    apple = Apple(snake.positions + rocks.positions)
 
     while True:
         handle_keys(snake)
