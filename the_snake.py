@@ -92,7 +92,7 @@ class GameObject():
             f'Метод draw не реализован в классе {type(self).__name__}'
         )
 
-    def spawn(self):
+    def spawn(self) -> None:
         """Creates an object on the surface.
 
         This method is used only if object creation is not implemented by
