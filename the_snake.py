@@ -14,7 +14,7 @@ Dependencies:
 from random import randint as ri
 from random import randrange as rr
 
-import pygame
+import pygame as pg
 
 # Constants for field and grid dimensions:
 SCREEN_WIDTH, SCREEN_HEIGHT = 640, 480
@@ -40,17 +40,17 @@ SNAKE_COLOR = (107, 142, 35)
 ROCK_COLOR = (147, 147, 136)
 
 # Snake movement speed:
-SPEED = 10
+SPEED = 12
 
 
 # Configuring the game window:
-screen = pygame.display.set_mode((SCREEN_WIDTH, SCREEN_HEIGHT), 0, 32)
+screen = pg.display.set_mode((SCREEN_WIDTH, SCREEN_HEIGHT), 0, 32)
 
 # Gameplay Window Title:
-pygame.display.set_caption('Змейка')
+pg.display.set_caption('Змейка')
 
 # Setting the time:
-clock = pygame.time.Clock()
+clock = pg.time.Clock()
 
 
 class Grid():
@@ -59,16 +59,16 @@ class Grid():
     def __init__(self) -> None:
         self.grid_color = MESH_COLOR
 
-    def draw(self, surface: pygame.Surface) -> None:
+    def draw(self, surface: pg.Surface) -> None:
         """Draws an object on a specified surface."""
         screen.fill(BOARD_BACKGROUND_COLOR)
 
         for x in range(GRID_WIDTH):
             for y in range(GRID_HEIGHT):
-                pygame.draw.rect(
+                pg.draw.rect(
                     surface,
                     self.grid_color,
-                    pygame.Rect(
+                    pg.Rect(
                         (x * GRID_SIZE, y * GRID_SIZE),
                         RECT_SIZE
                     ),
@@ -86,38 +86,44 @@ class GameObject():
         )
         self.body_color: tuple[int, int, int] | None = None
 
-    def draw(self, surface: pygame.Surface) -> None:
+    def draw(self, surface: pg.Surface) -> None:
         """Abstract draw method to be overridden by subclasses."""
-        pass
+        raise NotImplementedError(
+            f'Метод draw не реализован в классе {type(self).__name__}'
+        )
+
+    def spawn(self):
+        """Creates an object on the surface.
+
+        This method is used only if object creation is not implemented by
+        other methods of the class.
+        """
+        raise NotImplementedError(
+            f'Метод spawn не реализован в классе {type(self).__name__}'
+        )
 
 
 class Snake(GameObject):
     """Represents the player-controlled snake entity."""
 
-    def __init__(
-            self,
-            length: int = 1,
-            direction: tuple[int, int] = RIGHT,
-            next_direction: tuple[int, int] | None = None,
-            last: tuple[int, int] | None = None
-    ) -> None:
+    def __init__(self) -> None:
         super().__init__()
-        self.positions: list[tuple[int, int]] = [
-            (SCREEN_WIDTH // 2,
-             SCREEN_HEIGHT // 2)
-        ]
+        #  We declare the class attributes and call the “reset” method, which
+        # will assign values to them, since—according to the author's
+        # design—the snake's initial parameters cannot be changed when the
+        # object is created.
         self.body_color: tuple[int, int, int] = SNAKE_COLOR
-        self.length = length
-        self.direction = direction
-        self.next_direction = next_direction
-        self._last = last
+        self.positions: list[tuple[int, int]]
+        self.direction: tuple[int, int]
+        self.next_direction: tuple[int, int] | None
+        self.reset()
 
-    def draw(self, surface: pygame.Surface) -> None:
+    def draw(self, surface: pg.Surface) -> None:
         """Draw all segments of the snake on the surface."""
         for position in self.positions:
-            rect = pygame.Rect(position, RECT_SIZE)
-            pygame.draw.rect(surface, self.body_color, rect)
-            pygame.draw.rect(surface, BORDER_COLOR, rect, 1)
+            rect = pg.Rect(position, RECT_SIZE)
+            pg.draw.rect(surface, self.body_color, rect)
+            pg.draw.rect(surface, BORDER_COLOR, rect, 1)
 
     @property
     def get_head_position(self) -> tuple[int, int]:
@@ -126,20 +132,22 @@ class Snake(GameObject):
 
     def move(self) -> None:
         """The method organizes the logic of the snake's movement."""
-        head_position = self.get_head_position
+        head_position_x, head_position_y = self.get_head_position
+        direction_x, direction_y = self.direction
+
         # Calculate coordinates for the next position.
-        next_head_pos = (
-            head_position[0] + (self.direction[0] * GRID_SIZE),
-            head_position[1] + (self.direction[1] * GRID_SIZE)
+        next_head_position = (
+            head_position_x + (direction_x * GRID_SIZE),
+            head_position_y + (direction_y * GRID_SIZE)
         )
         # If you go beyond the boundary, the snake will reappear
         # on the other side.
-        new_head_pos = (
-            next_head_pos[0] % SCREEN_WIDTH,
-            next_head_pos[1] % SCREEN_HEIGHT
+        new_head_position = (
+            next_head_position[0] % SCREEN_WIDTH,
+            next_head_position[1] % SCREEN_HEIGHT
         )
 
-        self.positions.insert(0, new_head_pos)
+        self.positions.insert(0, new_head_position)
         # Remove the last segment to simulate movement.
         if len(self.positions) > self.length:
             self._last = self.positions[-1]
@@ -162,26 +170,27 @@ class Snake(GameObject):
 class Apple(GameObject):
     """The method provides food for the snake."""
 
-    def __init__(self) -> None:
+    def __init__(self, occupied_positions: list[tuple[int, int]]) -> None:
         super().__init__()
         self.body_color: tuple[int, int, int] = APPLE_COLOR
+        self.randomize_position(occupied_positions)
 
-    def randomize_position(self, snake: 'Snake', rocks: 'Rocks') -> None:
+    def randomize_position(
+        self,
+        occupied_positions: list[tuple[int, int]]
+    ) -> None:
         """The method implements a random apple spawn."""
-        while (
-            self.position in snake.positions
-            or self.position in rocks.positions
-        ):
+        while self.position in occupied_positions:
             self.position = (
                 rr(0, SCREEN_WIDTH - GRID_SIZE, GRID_SIZE),
                 rr(0, SCREEN_HEIGHT - GRID_SIZE, GRID_SIZE)
             )
 
-    def draw(self, surface: pygame.Surface) -> None:
+    def draw(self, surface: pg.Surface) -> None:
         """Draws an apple on the selected surface."""
-        rect = pygame.Rect(self.position, RECT_SIZE)
-        pygame.draw.rect(surface, self.body_color, rect)
-        pygame.draw.rect(surface, APPLE_BORDER_COLOR, rect, 1)
+        rect = pg.Rect(self.position, RECT_SIZE)
+        pg.draw.rect(surface, self.body_color, rect)
+        pg.draw.rect(surface, APPLE_BORDER_COLOR, rect, 1)
 
 
 class Rocks(GameObject):
@@ -192,67 +201,65 @@ class Rocks(GameObject):
         self.body_color: tuple[int, int, int] = ROCK_COLOR
         self.positions: list[tuple[int, int]] = []
 
-    def spawn_rock(self) -> None:
+    def spawn(self) -> None:
         """Creates a list of coordinates for obstacles."""
         self.positions.clear()
         for _ in range(ri(7, 15)):
             # Multiply GRID_SIZE by 3 to increase the distance between
             # obstacles.
-            self.positions.append(
-                (rr(0, SCREEN_WIDTH - GRID_SIZE, GRID_SIZE * 3),
-                 rr(0, SCREEN_HEIGHT - GRID_SIZE, GRID_SIZE * 3))
-            )
+            random_position = (rr(0, SCREEN_WIDTH - GRID_SIZE, GRID_SIZE * 3),
+                               rr(0, SCREEN_HEIGHT - GRID_SIZE, GRID_SIZE * 3))
+            if random_position in self.positions:
+                continue
+            else:
+                self.positions.append(random_position)
 
-    def draw(self, surface: pygame.Surface) -> None:
+    def draw(self, surface: pg.Surface) -> None:
         """Draws obstacles on the selected surface."""
         for rock in self.positions:
-            rock_rect = pygame.Rect(rock, RECT_SIZE)
-            pygame.draw.rect(surface, self.body_color, rock_rect)
-            pygame.draw.rect(surface, ROCKS_BORDER_COLOR, rock_rect, 1)
+            rock_rect = pg.Rect(rock, RECT_SIZE)
+            pg.draw.rect(surface, self.body_color, rock_rect)
+            pg.draw.rect(surface, ROCKS_BORDER_COLOR, rock_rect, 1)
 
 
 def handle_keys(game_object: Snake) -> None:
     """Handles keyboard events and changes the object's direction."""
-    for event in pygame.event.get():
-        if event.type == pygame.QUIT:
-            pygame.quit()
+    for event in pg.event.get():
+        if event.type == pg.QUIT:
+            pg.quit()
             raise SystemExit
-        elif event.type == pygame.KEYDOWN:
+        elif event.type == pg.KEYDOWN:
             if (
-                event.key == pygame.K_UP
+                event.key == pg.K_UP
                 and game_object.direction != DOWN
             ):
                 game_object.next_direction = UP
             elif (
-                event.key == pygame.K_DOWN
+                event.key == pg.K_DOWN
                 and game_object.direction != UP
             ):
                 game_object.next_direction = DOWN
 
             elif (
-                event.key == pygame.K_LEFT
+                event.key == pg.K_LEFT
                 and game_object.direction != RIGHT
             ):
                 game_object.next_direction = LEFT
 
             elif (
-                event.key == pygame.K_RIGHT
+                event.key == pg.K_RIGHT
                 and game_object.direction != LEFT
             ):
                 game_object.next_direction = RIGHT
 
 
-def spawn_objects(
-        obj_rocks: Rocks,
-        obj_apple: Apple,
-        obj_snake: Snake
-) -> None:
+def spawn_objects(*args: GameObject) -> None:
     """Spawns objects."""
-    obj_rocks.spawn_rock()
-    obj_apple.randomize_position(obj_snake, obj_rocks)
+    for obj in args:
+        obj.spawn()
 
 
-def draw_objects(surface: pygame.Surface, *args: GameObject | Grid) -> None:
+def draw_objects(surface: pg.Surface, *args: GameObject | Grid) -> None:
     """Draws the objects that have been passed to it."""
     for obj in args:
         obj.draw(surface)
@@ -261,7 +268,7 @@ def draw_objects(surface: pygame.Surface, *args: GameObject | Grid) -> None:
 def main() -> None:
     """The main game control function.
 
-    Performs: initializes pygame, creates objects, and runs an infinite loop
+    Performs: initializes pg, creates objects, and runs an infinite loop
     that includes collision checks, screen clearing, rendering objects,
     and frame rate monitoring. It runs until the user closes the game window.
 
@@ -271,35 +278,35 @@ def main() -> None:
     Returns:
         None
     """
-    pygame.init()
+    pg.init()
 
     grid = Grid()
     snake = Snake()
-    apple = Apple()
     rocks = Rocks()
+    apple = Apple(snake.positions + rocks.positions)
 
-    spawn_objects(rocks, apple, snake)
+    spawn_objects(rocks)
 
     while True:
         handle_keys(snake)
         snake.update_direction()
         snake.move()
 
-        if snake.get_head_position in snake.positions[2:]:
-            spawn_objects(rocks, apple, snake)
+        if snake.get_head_position in snake.positions[4:]:
+            spawn_objects(rocks)
             snake.reset()
 
-        if snake.get_head_position in rocks.positions:
-            spawn_objects(rocks, apple, snake)
+        elif snake.get_head_position in rocks.positions:
+            spawn_objects(rocks)
             snake.reset()
 
-        if snake.get_head_position == apple.position:
+        elif snake.get_head_position == apple.position:
             snake.length += 1
-            apple.randomize_position(snake, rocks)
+            apple.randomize_position(snake.positions + rocks.positions)
 
         draw_objects(screen, grid, rocks, apple, snake)
 
-        pygame.display.update()
+        pg.display.update()
         clock.tick(SPEED)
 
 
