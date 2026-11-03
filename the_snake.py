@@ -61,30 +61,24 @@ class Grid():
 
     def draw(self, surface: pg.Surface) -> None:
         """Draws an object on a specified surface."""
-        screen.fill(BOARD_BACKGROUND_COLOR)
+        surface.fill(BOARD_BACKGROUND_COLOR)
 
-        for x in range(GRID_WIDTH):
-            for y in range(GRID_HEIGHT):
-                pg.draw.rect(
-                    surface,
-                    self.grid_color,
-                    pg.Rect(
-                        (x * GRID_SIZE, y * GRID_SIZE),
-                        RECT_SIZE
-                    ),
-                    1
-                )
+        for x in range(0, SCREEN_WIDTH, GRID_SIZE):
+            pg.draw.line(surface, self.grid_color, (x, 0), (x, SCREEN_HEIGHT))
+
+        for y in range(0, SCREEN_HEIGHT, GRID_SIZE):
+            pg.draw.line(surface, self.grid_color, (0, y), (SCREEN_WIDTH, y))
 
 
 class GameObject():
     """Base class for all interactive game entities."""
 
-    def __init__(self) -> None:
+    def __init__(self, body_color: tuple[int, int, int] | None = None) -> None:
         self.position: tuple[int, int] = (
             SCREEN_WIDTH // 2,
             SCREEN_HEIGHT // 2
         )
-        self.body_color: tuple[int, int, int] | None = None
+        self.body_color = body_color
 
     def draw(self, surface: pg.Surface) -> None:
         """Abstract draw method to be overridden by subclasses."""
@@ -107,15 +101,7 @@ class Snake(GameObject):
     """Represents the player-controlled snake entity."""
 
     def __init__(self) -> None:
-        super().__init__()
-        #  We declare the class attributes and call the “reset” method, which
-        # will assign values to them, since—according to the author's
-        # design—the snake's initial parameters cannot be changed when the
-        # object is created.
-        self.body_color: tuple[int, int, int] = SNAKE_COLOR
-        self.positions: list[tuple[int, int]]
-        self.direction: tuple[int, int]
-        self.next_direction: tuple[int, int] | None
+        super().__init__(body_color=SNAKE_COLOR)
         self.reset()
 
     def draw(self, surface: pg.Surface) -> None:
@@ -161,10 +147,10 @@ class Snake(GameObject):
 
     def reset(self) -> None:
         """Restarts the game when it collides with an obstacle."""
-        self.positions = [self.position]
-        self.length = 1
-        self.direction = RIGHT
-        self.next_direction = None
+        self.positions: list[tuple[int, int]] = [self.position]
+        self.length: int = 1
+        self.direction: tuple[int, int] = RIGHT
+        self.next_direction: tuple[int, int] = None
 
 
 class Apple(GameObject):
@@ -174,17 +160,14 @@ class Apple(GameObject):
             self,
             occupied_positions: list[tuple[int, int]] | None = None
     ) -> None:
-        super().__init__()
-        self.body_color: tuple[int, int, int] = APPLE_COLOR
-        self.randomize_position(occupied_positions)
+        super().__init__(body_color=APPLE_COLOR)
+        self.randomize_position(occupied_positions or [])
 
     def randomize_position(
         self,
-        occupied_positions: list[tuple[int, int]] | None
+        occupied_positions: list[tuple[int, int]]
     ) -> None:
         """The method implements a random apple spawn."""
-        if occupied_positions is None:
-            occupied_positions = []
         while self.position in occupied_positions:
             self.position = (
                 rr(0, SCREEN_WIDTH - GRID_SIZE, GRID_SIZE),
@@ -202,8 +185,7 @@ class Rocks(GameObject):
     """The method implements obstacles for the snake game."""
 
     def __init__(self) -> None:
-        super().__init__()
-        self.body_color: tuple[int, int, int] = ROCK_COLOR
+        super().__init__(body_color=ROCK_COLOR)
         self.positions: list[tuple[int, int]] = []
 
     def spawn(self) -> None:
